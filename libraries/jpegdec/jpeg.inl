@@ -3107,11 +3107,12 @@ int x, y, xmask=0, iDestPitch=0;
 int32_t cNew, lFErr, v=0, h;
 int32_t e1,e2,e3,e4;
 uint8_t cOut, ucPixelType; // forward errors for gray
-uint8_t *pSrc, *pDest, *errors, *pErrors=NULL, *d, *pPixels; // destination 8bpp image
+uint8_t *pSrc, *pDest, *d, *pPixels; // destination 8bpp image
+uint16_t *errors, *pErrors=NULL;
 uint8_t pixelmask=0, shift=0;
     
     ucPixelType = pJPEG->ucPixelType;
-    errors = (uint8_t *)pJPEG->usPixels; // plenty of space here
+    errors = (uint16_t *)pJPEG->usPixels; // plenty of space here
     errors[0] = errors[1] = errors[2] = 0;
     pDest = pSrc = pJPEG->pDitherBuffer; // write the new pixels over the original
     switch (ucPixelType)
@@ -3146,7 +3147,7 @@ uint8_t pixelmask=0, shift=0;
         {
             cNew = *pPixels++; // get grayscale uint8_t pixel
             // add forward error
-            cNew += lFErr;
+            cNew += (lFErr >> 8);
             if (cNew > 255) cNew = 255;     // clip to uint8_t
             cOut <<= shift;                 // pack new pixels into a byte
             cOut |= (cNew >> (8-shift));    // keep top N bits
@@ -3157,6 +3158,7 @@ uint8_t pixelmask=0, shift=0;
             }
             // calculate the Floyd-Steinberg error for this pixel
             v = cNew - (cNew & pixelmask); // new error for N-bit gray output (always positive)
+            v <<= 8;
             h = v >> 1;
             e1 = (7*h)>>3;  // 7/16
             e2 = h - e1;  // 1/16
@@ -3164,7 +3166,7 @@ uint8_t pixelmask=0, shift=0;
             e4 = h - e3;  // 3/16
             // distribute error to neighbors
             lFErr = e1 + pErrors[1];
-            pErrors[1] = (uint8_t)e2;
+            pErrors[1] = (uint16_t)e2;
             pErrors[0] += e3;
             pErrors[-1] += e4;
             pErrors++;
